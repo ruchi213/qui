@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Quiz with Login/Register</title>
+<style>
+  /* Basic resets */
+  * {
+    box-sizing: border-box;
+  }
+  body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background: #f0f2f5;
+    margin: 0; padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    min-height: 100vh;
+    padding: 40px 20px;
+  }
+  .container {
+    background: white;
+    width: 400px;
+    padding: 30px 40px 40px;
+    border-radius: 8px;
+    box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+    position: relative;
+  }
+  h2 {
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  /* Forms */
+  form {
+    display: none;
+    flex-direction: column;
+  }
+  form.active {
+    display: flex;
+  }
+  label {
+    margin: 10px 0 5px;
+    font-weight: 600;
+  }
+  input[type="text"],
+  input[type="email"],
+  input[type="password"] {
+    padding: 10px;
+    font-size: 16px;
+    border: 1.8px solid #ccc;
+    border-radius: 5px;
+    transition: border-color 0.3s ease;
+  }
+  input[type="text"]:focus,
+  input[type="email"]:focus,
+  input[type="password"]:focus {
+    border-color: #007bff;
+    outline: none;
+  }
+  button {
+    margin-top: 20px;
+    padding: 12px;
+    font-size: 16px;
+    background: #007bff;
+    color: white;
+    border: none;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+  }
+  button:hover {
+    background: #0056b3;
+  }
+  .toggle-link {
+    margin-top: 15px;
+    text-align: center;
+    color: #007bff;
+    cursor: pointer;
+    user-select: none;
+    font-weight: 600;
+  }
+  .toggle-link:hover {
+    text-decoration: underline;
+  }
+  /* Quiz styles */
+  #quiz {
+    display: none;
+    flex-direction: column;
+  }
+  #question {
+    font-size: 20px;
+    margin-bottom: 15px;
+  }
+  #answer-buttons {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  #answer-buttons button {
+    padding: 12px 20px;
+    font-size: 16px;
+    border: 2px solid #007bff;
+    background: white;
+    color: #007bff;
+    border-radius: 25px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+  }
+  #answer-buttons button:hover:not(:disabled) {
+    background: #007bff;
+    color: white;
+  }
+  #answer-buttons button.correct {
+    background: #28a745;
+    color: white;
+    border-color: #28a745;
+    cursor: default;
+  }
+  #answer-buttons button.incorrect {
+    background: #dc3545;
+    color: white;
+    border-color: #dc3545;
+    cursor: default;
+  }
+  #next-btn {
+    margin-top: 20px;
+    padding: 12px 20px;
+    font-size: 18px;
+    border: none;
+    background: #17a2b8;
+    color: white;
+    border-radius: 25px;
+    cursor: pointer;
+    display: none;
+    user-select: none;
+  }
+  #next-btn:hover {
+    background: #117a8b;
+  }
+
+  /* Popup message top-right */
+  #popup-msg {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    transform: translateY(-20px) scale(0.8);
+    background: #e74c3c;
+    color: white;
+    padding: 12px 28px;
+    border-radius: 25px;
+    font-weight: 600;
+    font-size: 16px;
+    box-shadow: 0 6px 12px rgba(231, 76, 60, 0.4);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    z-index: 10;
+    user-select: none;
+    white-space: nowrap;
+  }
+  #popup-msg.show {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0) scale(1);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <!-- Register Form -->
+  <form id="register-form" class="active">
+    <h2>Register</h2>
+    <label for="reg-username">Username</label>
+    <input type="text" id="reg-username" required autocomplete="off" />
+    <label for="reg-email">Email</label>
+    <input type="email" id="reg-email" required autocomplete="off" />
+    <label for="reg-password">Password</label>
+    <input type="password" id="reg-password" required autocomplete="off" />
+    <button type="submit">Register</button>
+    <div class="toggle-link" id="to-login">Already have an account? Login</div>
+  </form>
+
+  <!-- Login Form -->
+  <form id="login-form">
+    <h2>Login</h2>
+    <label for="login-email">Email</label>
+    <input type="email" id="login-email" required autocomplete="off" />
+    <label for="login-password">Password</label>
+    <input type="password" id="login-password" required autocomplete="off" />
+    <button type="submit">Login</button>
+    <div class="toggle-link" id="to-register">Don't have an account? Register</div>
+  </form>
+
+  <!-- Quiz -->
+  <div id="quiz">
+    <div id="question"></div>
+    <div id="answer-buttons"></div>
+    <button id="next-btn">Next</button>
+  </div>
+
+  <!-- Popup message -->
+  <div id="popup-msg"></div>
+</div>
+
+<script>
+  // Questions array
+  const questions = [
+    {
+      question: "Which is the largest animal in the world?",
+      answers: [
+        { text: "Shark", correct: false },
+        { text: "Blue Whale", correct: true },
+        { text: "Elephant", correct: false },
+        { text: "Giraffe", correct: false },
+      ],
+    },
+    {
+      question: "Which is the smallest country in the world?",
+      answers: [
+        { text: "Vatican City", correct: true },
+        { text: "Bhutan", correct: false },
+        { text: "Nepal", correct: false },
+        { text: "Sri Lanka", correct: false },
+      ],
+    },
+    {
+      question: "Which is the largest desert in the world?",
+      answers: [
+        { text: "Kalahari", correct: false },
+        { text: "Gobi", correct: false },
+        { text: "Sahara", correct: false },
+        { text: "Antarctica", correct: true },
+      ],
+    },
+    {
+      question: "Which is the smallest continent in the world?",
+      answers: [
+        { text: "Asia", correct: false },
+        { text: "Australia", correct: true },
+        { text: "Arctic", correct: false },
+        { text: "Africa", correct: false },
+      ],
+    },
+    {
+      question: "Which planet is known as the Red Planet?",
+      answers: [
+        { text: "Earth", correct: false },
+        { text: "Mars", correct: true },
+        { text: "Jupiter", correct: false },
+        { text: "Saturn", correct: false },
+      ],
+    },
+    {
+      question: "Who wrote the play 'Romeo and Juliet'?",
+      answers: [
+        { text: "Charles Dickens", correct: false },
+        { text: "William Shakespeare", correct: true },
+        { text: "Jane Austen", correct: false },
+        { text: "Mark Twain", correct: false },
+      ],
+    },
+    {
+      question: "What is the capital of Japan?",
+      answers: [
+        { text: "Beijing", correct: false },
+        { text: "Seoul", correct: false },
+        { text: "Tokyo", correct: true },
+        { text: "Bangkok", correct: false },
+      ],
+    },
+    {
+      question: "What gas do plants absorb from the atmosphere?",
+      answers: [
+        { text: "Oxygen", correct: false },
+        { text: "Carbon Dioxide", correct: true },
+        { text: "Nitrogen", correct: false },
+        { text: "Hydrogen", correct: false },
+      ],
+    },
+    {
+      question: "Which element has the chemical symbol 'O'?",
+      answers: [
+        { text: "Gold", correct: false },
+        { text: "Oxygen", correct: true },
+        { text: "Silver", correct: false },
+        { text: "Iron", correct: false },
+      ],
+    },
+    {
+      question: "Which ocean is the largest?",
+      answers: [
+        { text: "Atlantic Ocean", correct: false },
+        { text: "Indian Ocean", correct: false },
+        { text: "Pacific Ocean", correct: true },
+        { text: "Arctic Ocean", correct: false },
+      ],
+    },
+  ];
+
+  // Elements
+  const registerForm = document.getElementById("register-form");
+  const loginForm = document.getElementById("login-form");
+  const quiz = document.getElementById("quiz");
+  const questionEl = document.getElementById("question");
+  const answerButtons = document.getElementById("answer-buttons");
+  const nextButton = document.getElementById("next-btn");
+  const popupMsg = document.getElementById("popup-msg");
+
+  // Toggle links
+  document.getElementById("to-login").addEventListener("click", () => {
+    registerForm.classList.remove("active");
+    loginForm.classList.add("active");
+  });
+  document.getElementById("to-register").addEventListener("click", () => {
+    loginForm.classList.remove("active");
+    registerForm.classList.add("active");
+  });
+
+  // Popup function
+  function showPopup(msg) {
+    popupMsg.textContent = msg;
+    popupMsg.classList.add("show");
+    setTimeout(() => {
+      popupMsg.classList.remove("show");
+    }, 2000);
+  }
+
+  // Registration
+  registerForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const username = document.getElementById("reg-username").value.trim();
+    const email = document.getElementById("reg-email").value.trim().toLowerCase();
+    const password = document.getElementById("reg-password").value;
+
+    if (!username || !email || !password) {
+      showPopup("Please fill all fields");
+      return;
+    }
+
+    if (localStorage.getItem(email)) {
+      showPopup("User already exists, please login");
+      return;
+    }
+
+    localStorage.setItem(email, JSON.stringify({ username, password }));
+    showPopup("Registration successful, please login");
+
+    registerForm.reset();
+    registerForm.classList.remove("active");
+    loginForm.classList.add("active");
+  });
+
+  // Login
+  loginForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+    const email = document.getElementById("login-email").value.trim().toLowerCase();
+    const password = document.getElementById("login-password").value;
+
+    const user = JSON.parse(localStorage.getItem(email));
+    if (!user) {
+      showPopup("User not found, please register");
+      return;
+    }
+
+    if (user.password !== password) {
+      showPopup("Incorrect password");
+      return;
+    }
+
+    // Login successful
+    loginForm.classList.remove("active");
+    startQuiz();
+  });
+
+  // Quiz logic
+  let currentQuestionIndex = 0;
+  let score = 0;
+
+  function startQuiz() {
+    score = 0;
+    currentQuestionIndex = 0;
+    nextButton.style.display = "none";
+    quiz.style.display = "flex";
+    showQuestion(questions[currentQuestionIndex]);
+  }
+
+  function showQuestion(question) {
+    questionEl.textContent = question.question;
+    answerButtons.innerHTML = "";
+
+    question.answers.forEach((answer) => {
+      const button = document.createElement("button");
+      button.textContent = answer.text;
+      button.addEventListener("click", () => selectAnswer(button, answer.correct));
+      answerButtons.appendChild(button);
+    });
+  }
+
+  function selectAnswer(button, isCorrect) {
+    // Disable all buttons
+    Array.from(answerButtons.children).forEach((btn) => (btn.disabled = true));
+
+    if (isCorrect) {
+      button.classList.add("correct");
+      score++;
+    } else {
+      button.classList.add("incorrect");
+      showPopup("Oops! Wrong answer.");
+      // Highlight the correct answer too
+      Array.from(answerButtons.children).forEach((btn) => {
+        if (
+          btn.textContent ===
+          questions[currentQuestionIndex].answers.find((a) => a.correct).text
+        ) {
+          btn.classList.add("correct");
+        }
+      });
+    }
+    nextButton.style.display = "block";
+  }
+
+  nextButton.addEventListener("click", () => {
+    currentQuestionIndex++;
+    if (currentQuestionIndex < questions.length) {
+      showQuestion(questions[currentQuestionIndex]);
+      nextButton.style.display = "none";
+    } else {
+      showScore();
+    }
+  });
+
+  function showScore() {
+    quiz.innerHTML = `
+      <h2>Quiz Completed! 🎉</h2>
+      <p style="font-size:18px; text-align:center; margin-top: 10px;">
+        Your score: <strong>${score} / ${questions.length}</strong>
+      </p>
+    `;
+  }
+</script>
+
+</body>
+</html>
